@@ -1,0 +1,24 @@
+# Helm values for the ingress-nginx chart - DEFAULT MODE: cert-manager +
+# Let's Encrypt. TLS terminates inside the ingress-nginx pod itself; the NLB
+# is a plain TCP passthrough on 80/443 with no AWS Certificate Manager
+# involved at all.
+#
+# Want Route 53 + ACM instead (TLS terminated at the NLB, zero-maintenance
+# renewal, no Let's Encrypt rate limits)? Use values-acm.yaml - see the
+# README "Option A" section.
+controller:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 90Mi
+    limits:
+      cpu: 200m
+      memory: 180Mi
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+  admissionWebhooks:
+    enabled: true

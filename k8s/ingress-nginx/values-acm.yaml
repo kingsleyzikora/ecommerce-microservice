@@ -1,0 +1,39 @@
+# ALTERNATIVE to values.yaml - Route 53 + ACM instead of cert-manager.
+#
+# TLS terminates at the AWS Network Load Balancer using an ACM certificate
+# (ACM certs can't be exported/installed into pods, so they're only usable by
+# AWS-native listeners like this). The NLB decrypts HTTPS on 443 and forwards
+# plain HTTP to the ingress-nginx pod - that's why enableHttp is false
+# (nothing listens on plain :80 externally) and ssl-redirect is disabled
+# (the controller itself only ever sees HTTP, so it must not try to redirect).
+#
+# To use: set request_acm_certificate = true in terraform.tfvars, replace
+# REPLACE_WITH_ACM_CERTIFICATE_ARN below with `terraform output
+# acm_certificate_arn`, point k8s/argocd/apps/ingress-nginx.yaml's valueFiles
+# at this file instead of values.yaml, and drop the tls:/cert-manager
+# annotation from each k8s/<service>/ingress.yaml - see README "Option A".
+controller:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 90Mi
+    limits:
+      cpu: 200m
+      memory: 180Mi
+  service:
+    type: LoadBalancer
+    enableHttp: false
+    enableHttps: true
+    targetPorts:
+      https: http
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+      service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "REPLACE_WITH_ACM_CERTIFICATE_ARN"
+      service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+      service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+  config:
+    ssl-redirect: "false"
+  admissionWebhooks:
+    enabled: true

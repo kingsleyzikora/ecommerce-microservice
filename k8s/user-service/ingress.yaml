@@ -1,0 +1,33 @@
+# Each microservice owns its own Ingress object in its own namespace; the
+# shared nginx ingress controller merges all of these into one host/routing
+# table (this is the path-based routing: same host, distinct path prefix per
+# service). TLS terminates inside the ingress-nginx pod via a cert-manager-
+# issued Let's Encrypt certificate stored in secretName below.
+#
+# Using Route 53 + ACM instead (TLS terminated at the NLB)? See README
+# "Option A" - you'd drop this tls: block and the cert-manager.io/cluster-issuer
+# annotation entirely and swap ingress-nginx to values-acm.yaml.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: user-service
+  namespace: user-service
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.yourdomain.com
+      secretName: user-service-tls
+  rules:
+    - host: api.yourdomain.com
+      http:
+        paths:
+          - path: /api/users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8080

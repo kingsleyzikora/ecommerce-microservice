@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cart-service-config
+  namespace: cart-service
+data:
+  PORT: "8080"
+  # Cross-namespace service DNS: <service>.<namespace>.svc.cluster.local
+  PRODUCT_SERVICE_URL: "http://product-service.product-service.svc.cluster.local:8080"

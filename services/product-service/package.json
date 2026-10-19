@@ -1,0 +1,14 @@
+{
+  "name": "product-service",
+  "version": "1.0.0",
+  "description": "Product catalog microservice",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

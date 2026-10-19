@@ -1,0 +1,24 @@
+# Copy to terraform.tfvars and adjust as needed.
+aws_region      = "us-east-1"
+cluster_name    = "micro-service-handson"
+cluster_version = "1.30"
+
+node_instance_types = ["t3.small"]
+node_desired_size   = 2
+node_min_size       = 1
+node_max_size       = 3
+use_spot            = true
+single_nat_gateway  = true
+
+github_repo = "your-gh-org/micro-service-handson"
+
+# Route 53 (DNS hosting for your domain - e.g. delegated from Namecheap).
+# Leave domain_name = "" to manage DNS elsewhere instead.
+domain_name        = "yourdomain.com"
+create_hosted_zone = true
+api_subdomain      = "api"
+
+# Default TLS is cert-manager + Let's Encrypt, which needs none of the
+# above and doesn't use ACM at all. Only set this true if you switch to
+# Option A (Route 53 + ACM, TLS terminated at the NLB) - see README.
+request_acm_certificate = false

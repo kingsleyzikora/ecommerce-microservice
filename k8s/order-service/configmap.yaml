@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-service-config
+  namespace: order-service
+data:
+  PORT: "8080"
+  CART_SERVICE_URL: "http://cart-service.cart-service.svc.cluster.local:8080"
+  NOTIFICATION_SERVICE_URL: "http://notification-service.notification-service.svc.cluster.local:8080"

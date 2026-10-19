@@ -1,0 +1,23 @@
+# App-of-apps: bootstrap this once with `kubectl apply -f k8s/argocd/root-app.yaml`
+# after ArgoCD itself is installed. It then manages every other Application
+# declaratively from git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/REPLACE_WITH_YOUR_GH_ORG/micro-service-handson.git
+    targetRevision: main
+    path: k8s/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

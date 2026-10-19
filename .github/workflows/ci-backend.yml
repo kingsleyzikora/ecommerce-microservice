@@ -1,0 +1,93 @@
+name: ci-backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/**'
+      - '.github/workflows/ci-backend.yml'
+  pull_request:
+    paths:
+      - 'services/**'
+
+permissions:
+  id-token: write   # required for AWS OIDC
+  contents: write   # required to commit the new image tag back to git (GitOps)
+
+concurrency:
+  group: ci-backend-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1 # avoid concurrent git pushes to the manifest repo from matrix jobs
+      matrix:
+        service:
+          - user-service
+          - product-service
+          - cart-service
+          - order-service
+          - notification-service
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: services/${{ matrix.service }}/package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run tests
+        run: npm test
+
+      - name: Configure AWS credentials via OIDC
+        if: github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: github.event_name == 'push'
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        if: github.event_name == 'push'
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          SERVICE: ${{ matrix.service }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$REGISTRY/$SERVICE:$IMAGE_TAG" -t "$REGISTRY/$SERVICE:latest" .
+          docker push "$REGISTRY/$SERVICE:$IMAGE_TAG"
+          docker push "$REGISTRY/$SERVICE:latest"
+
+      - name: Bump image tag in k8s manifest (GitOps - ArgoCD picks this up)
+        if: github.event_name == 'push'
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          SERVICE: ${{ matrix.service }}
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          MANIFEST="k8s/$SERVICE/deployment.yaml"
+          sed -i -E "s#image: .*/$SERVICE:.*#image: $REGISTRY/$SERVICE:$IMAGE_TAG#" "$MANIFEST"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$MANIFEST"
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: deploy $SERVICE@$IMAGE_TAG"
+            git pull --rebase origin main
+            git push origin main
+          else
+            echo "no manifest change to commit"
+          fi

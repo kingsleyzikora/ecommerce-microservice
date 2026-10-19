@@ -1,0 +1,25 @@
+# Depends on cert-manager's CRDs already being installed (sync-wave 0 above).
+# On a brand-new cluster the very first sync may need a manual retry in the
+# ArgoCD UI if it races the CRD installation.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cluster-issuer
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/REPLACE_WITH_YOUR_GH_ORG/micro-service-handson.git
+    targetRevision: main
+    path: k8s/cert-manager
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

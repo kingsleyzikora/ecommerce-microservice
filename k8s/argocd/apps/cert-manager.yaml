@@ -1,0 +1,32 @@
+# Default TLS path: cert-manager + Let's Encrypt, terminated inside the
+# ingress-nginx pod. Switching to Option A (Route 53 + ACM, terminated at
+# the NLB) instead? Move this file and cluster-issuer.yaml into
+# k8s/argocd/apps-optional/, swap ingress-nginx to values-acm.yaml, and drop
+# the tls:/annotation block from each k8s/<service>/ingress.yaml - see
+# README "Option A".
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: v1.15.3
+    helm:
+      parameters:
+        - name: installCRDs
+          value: "true"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
