@@ -11,9 +11,9 @@ variable "cluster_name" {
 }
 
 variable "cluster_version" {
-  description = "Kubernetes version for EKS control plane"
+  description = "Kubernetes version for EKS control plane. Check `aws eks describe-cluster-versions` for what's currently STANDARD_SUPPORT - EKS stops publishing new node-group AMIs once a version ages out, which breaks node group creation even though the control plane may still accept the old version."
   type        = string
-  default     = "1.30"
+  default     = "1.34"
 }
 
 variable "vpc_cidr" {

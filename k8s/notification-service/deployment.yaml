@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: notification-service
-          image: ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/notification-service:latest
+          image: 873014949913.dkr.ecr.us-east-1.amazonaws.com/notification-service:latest
           ports:
             - containerPort: 8080
           envFrom:

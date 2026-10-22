@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: product-service
-          image: ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/product-service:latest
+          image: 873014949913.dkr.ecr.us-east-1.amazonaws.com/product-service:latest
           ports:
             - containerPort: 8080
           envFrom:

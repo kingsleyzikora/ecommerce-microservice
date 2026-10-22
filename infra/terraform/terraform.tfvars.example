@@ -1,7 +1,7 @@
 # Copy to terraform.tfvars and adjust as needed.
 aws_region      = "us-east-1"
 cluster_name    = "micro-service-handson"
-cluster_version = "1.30"
+cluster_version = "1.34"
 
 node_instance_types = ["t3.small"]
 node_desired_size   = 2
@@ -10,11 +10,11 @@ node_max_size       = 3
 use_spot            = true
 single_nat_gateway  = true
 
-github_repo = "your-gh-org/micro-service-handson"
+github_repo = "kingsleyzikora/ecommerce-microservice"
 
 # Route 53 (DNS hosting for your domain - e.g. delegated from Namecheap).
 # Leave domain_name = "" to manage DNS elsewhere instead.
-domain_name        = "yourdomain.com"
+domain_name        = "bigdawgboss.online"
 create_hosted_zone = true
 api_subdomain      = "api"
 

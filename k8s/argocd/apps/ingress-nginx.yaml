@@ -14,7 +14,7 @@ spec:
       helm:
         valueFiles:
           - $values/k8s/ingress-nginx/values.yaml
-    - repoURL: https://github.com/REPLACE_WITH_YOUR_GH_ORG/micro-service-handson.git
+    - repoURL: https://github.com/kingsleyzikora/ecommerce-microservice.git
       targetRevision: main
       ref: values
   destination:

@@ -253,7 +253,14 @@ kubectl apply -f k8s/namespaces/namespaces.yaml
 
 ```bash
 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# --server-side is required here: the applicationsets.argoproj.io CRD is
+# large enough that plain `kubectl apply` fails with
+# "metadata.annotations: Too long: may not be more than 262144 bytes"
+# (it tries to stash the whole manifest in an annotation for 3-way merges;
+# server-side apply doesn't use that mechanism). --force-conflicts lets it
+# take ownership cleanly on a retry if you've already run this once without it.
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --server-side --force-conflicts
 
 kubectl -n argocd rollout status deploy/argocd-server
 

@@ -9,10 +9,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - api.yourdomain.com
+        - api.bigdawgboss.online
       secretName: notification-service-tls
   rules:
-    - host: api.yourdomain.com
+    - host: api.bigdawgboss.online
       http:
         paths:
           - path: /api/notifications
