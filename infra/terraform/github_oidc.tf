@@ -36,7 +36,17 @@ data "aws_iam_policy_document" "github_actions_trust" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      # GitHub now embeds immutable numeric IDs alongside the org/repo names
+      # in the sub claim (e.g. "repo:org@123/repo@456:ref:..." instead of
+      # "repo:org/repo:ref:..."), so a repo/org rename can't be used to
+      # hijack an old trust relationship. Matching with wildcards in place
+      # of the optional "@<id>" segments keeps this working whether or not
+      # GitHub includes them for a given repo, without hardcoding IDs that
+      # would break the moment this repo (or its owner account) is renamed.
+      values = [
+        "repo:${var.github_repo}:*",
+        "repo:${split("/", var.github_repo)[0]}@*/${split("/", var.github_repo)[1]}@*:*",
+      ]
     }
   }
 }
