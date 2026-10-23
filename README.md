@@ -576,6 +576,16 @@ Each service also has a smoke test: `cd services/<name> && npm test`.
   `product-service` at `http://product-service.product-service.svc.cluster.local:8080`
   — the `<service>.<namespace>.svc.cluster.local` pattern works across
   namespaces without any service mesh.
+- **Every service has `app.use(cors())`** — not optional, and easy to
+  assume you don't need it: `curl`/Postman/service-to-service calls all
+  bypass CORS entirely (it's a *browser*-enforced policy, not a network
+  one), so this gap is invisible to every form of testing except an actual
+  browser hitting the API from a different origin than Amplify's
+  `*.amplifyapp.com` domain — which is exactly the real frontend's
+  situation. Without it, every API call from the deployed frontend fails
+  with a generic "Failed to fetch," even though the server genuinely
+  returns `200` (check the Network tab, not just the error message, if
+  this ever resurfaces).
 - **Path-based routing via one Ingress object per namespace, same host** —
   nginx-ingress-controller merges Ingress resources from every namespace
   that share a host into one routing table, so you get one external
@@ -702,6 +712,21 @@ this project.
   record isn't resolving to the ingress NLB yet, or propagation hasn't
   finished. `dig api.yourdomain.com` to confirm, then re-check
   `kubectl describe challenge -A`.
+- **Certificate stuck in `False` even though `kubectl get challenge`
+  shows `STATE: valid`**: domain ownership was already proven, but the
+  underlying `Order` resource stopped being reconciled before it could
+  finalize (seen in practice as the `Order` sitting at `STATE: processing`
+  with no recent activity in `kubectl -n cert-manager logs
+  deploy/cert-manager`, and no events on the `Order` itself). Deleting the
+  stuck `Order` is the fix — cert-manager recreates it fresh from the
+  still-approved `CertificateRequest`, re-runs the (already-proven-working)
+  challenge, and finalizes properly the second time:
+  ```bash
+  kubectl get order -A
+  kubectl delete order <name> -n <namespace>
+  ```
+  This is a transient reconciliation hiccup, not something wrong with your
+  setup — it's shown up more than once in practice, always fixed by this.
 - **Site unreachable right after switching Namecheap to Custom DNS**: normal
   — propagation can take anywhere from 15 minutes to 48 hours. `dig NS
   yourdomain.com +short` to check progress.
@@ -709,6 +734,37 @@ this project.
   small for the scheduled pods. Bump `node_instance_types` to `t3.medium` or
   increase `node_desired_size` in `infra/terraform/variables.tf`, then
   `terraform apply`.
+- **Pods `Pending` with `FailedScheduling: ... Too many pods`** (note:
+  different from the one above — this is a pod-*count* ceiling, not a
+  CPU/memory one): shouldn't happen on a fresh deploy of this repo —
+  `eks.tf` already sets `ami_type`, `cloudinit_pre_nodeadm` (`maxPods:
+  110`), and `ENABLE_PREFIX_DELEGATION` specifically to avoid it (see the
+  comments there for why `t3.small` needs all three, not just one). If you
+  still hit it — e.g. after adding several more services beyond the 5
+  here — confirm with
+  `kubectl get nodes -o custom-columns=NAME:.metadata.name,PODS:.status.allocatable.pods`
+  (should read ~110, not 11); if it still reads 11, your node group was
+  created *before* this fix and needs replacing, not just reconfiguring —
+  changing `ami_type`/`cloudinit_pre_nodeadm` only affects *new* node
+  launches, so run `terraform apply` and expect your existing nodes to
+  cycle (EKS performs a rolling replacement automatically).
+- **`terraform apply` succeeds, but the ingress NLB never gets an
+  `EXTERNAL-IP`**, and `kubectl -n ingress-nginx describe svc
+  ingress-nginx-controller` shows a `SyncLoadBalancerFailed` event with
+  `OperationNotPermitted: This AWS account currently does not support
+  creating load balancers`: this is an AWS **account-level** restriction,
+  unrelated to anything in this repo — new AWS accounts (especially ones
+  just starting to use Free Tier credits) sometimes get load-balancer
+  creation blocked by AWS's automated fraud-prevention checks until the
+  account "ages" a bit. Nothing to fix in Terraform or Kubernetes here.
+  Either wait ~24h (it often clears on its own), or open an AWS Support
+  case (Support Center → Create case → **Account and billing**, not a
+  technical category) explaining you're getting `OperationNotPermitted`
+  creating an Elastic Load Balancer and asking for the restriction to be
+  lifted — doesn't require a paid support plan, typically resolved within
+  hours once a human looks at it. `ingress-nginx`'s `service-controller`
+  already retries automatically every few minutes, so nothing else to do
+  once it clears.
 - **(Option A only) `terraform apply` hangs on
   `aws_acm_certificate_validation`**: your domain's nameservers aren't
   actually pointed at Route 53 yet. This is why §8.2 has you do the hosted
