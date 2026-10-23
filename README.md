@@ -81,8 +81,9 @@ k8s/
   <service>/         deployment.yaml, service.yaml, configmap.yaml, ingress.yaml per service
   ingress-nginx/      values.yaml (default: cert-manager) and values-acm.yaml (Option A)
   cert-manager/       ClusterIssuers (staging + prod)
+  argocd-server-ingress/  (Optional, §5.10) Ingress exposing the ArgoCD UI on its own subdomain
   argocd/
-    apps/              Auto-synced by root-app: ingress-nginx, cert-manager, cluster-issuer, 5 services
+    apps/              Auto-synced by root-app: ingress-nginx, cert-manager, cluster-issuer, 5 services (+ argocd-server-ingress if §5.10 is set up)
     apps-optional/      Not auto-synced - park files here to disable them (used by Option A)
     root-app.yaml       The one Application you kubectl apply by hand (app-of-apps)
 .github/workflows/   ci-backend.yml (matrix build/test/push/deploy), ci-frontend.yml (lint/build)
@@ -388,6 +389,161 @@ Repeat for the other 4 namespaces to confirm all pods are `Running` and
 Open the Amplify-provided URL, register a user, browse products, add to
 cart, and check out — you should see a confirmed order and a notification,
 proving all 5 backend services and the ingress are wired correctly.
+
+### 5.10 (Optional) Expose the ArgoCD UI on its own subdomain
+
+By default you only reach ArgoCD via `kubectl port-forward`, which is fine
+for occasional use but annoying if you check it often. This puts it behind
+a real hostname (`argo.yourdomain.com`) with a trusted cert, reusing the
+exact same nginx-ingress + cert-manager pattern as the 5 microservices —
+and it stays GitOps-managed afterward, just like everything else.
+
+**1. Put `argocd-server` into insecure mode.** By default it terminates its
+own self-signed TLS on port 8080; if you put an Ingress in front of that
+as-is, you get TLS wrapped inside TLS, which doesn't work cleanly. Telling
+it to serve plain HTTP instead lets nginx-ingress be the one terminating
+real TLS, exactly like it already does for your services:
+
+```bash
+kubectl -n argocd patch configmap argocd-cmd-params-cm --type merge \
+  -p '{"data":{"server.insecure":"true"}}'
+kubectl -n argocd rollout restart deployment argocd-server
+kubectl -n argocd rollout status deployment argocd-server
+```
+
+This is a one-time **imperative** step, not tracked in this repo's git —
+because ArgoCD itself was installed straight from the upstream
+`install.yaml` URL in §5.5, not from a manifest this repo owns. If you ever
+reinstall ArgoCD from scratch, redo this step too.
+
+**2. Add the Ingress**, in its own directory so its ArgoCD Application
+doesn't also recurse into `k8s/argocd/`'s `root-app.yaml` and `apps/`
+folder:
+
+```bash
+mkdir -p k8s/argocd-server-ingress
+```
+
+`k8s/argocd-server-ingress/ingress.yaml`:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - argo.yourdomain.com
+      secretName: argocd-server-tls
+  rules:
+    - host: argo.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  name: http
+```
+
+Note `port: { name: http }` rather than a port number — `argocd-server`'s
+Service exposes ports named `http` (80) and `https` (443), both pointing
+at the same container port 8080; using the name is just clearer about
+intent than guessing which number is right.
+
+**3. Add the ArgoCD Application** so this Ingress is managed via GitOps
+from here on, same as everything else:
+
+`k8s/argocd/apps/argocd-server-ingress.yaml`:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/<your-gh-org>/<your-repo>.git
+    targetRevision: main
+    path: k8s/argocd-server-ingress
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+```
+
+**4. Commit and push both files.** ArgoCD polls git every ~3 minutes by
+default; to skip the wait, force an immediate refresh on `root-app`:
+
+```bash
+kubectl -n argocd annotate application root-app argocd.argoproj.io/refresh=hard --overwrite
+```
+
+Check it picked up the new child Application:
+```bash
+kubectl -n argocd get applications argocd-server-ingress
+```
+
+**5. Point DNS at the same NLB** you already created a record for in §5.7
+— no new load balancer needed, nginx-ingress routes by hostname:
+
+```bash
+NLB=$(kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+ZONE_ID=$(cd infra/terraform && terraform output -raw route53_zone_id)
+
+aws route53 change-resource-record-sets --hosted-zone-id "$ZONE_ID" --change-batch '{
+  "Changes": [{
+    "Action": "UPSERT",
+    "ResourceRecordSet": {
+      "Name": "argo.yourdomain.com",
+      "Type": "CNAME",
+      "TTL": 60,
+      "ResourceRecords": [{"Value": "'"$NLB"'"}]
+    }
+  }]
+}'
+```
+
+(No Route 53? Add the same CNAME in your DNS provider's console instead —
+nginx-ingress doesn't care who hosts the zone.)
+
+**6. Wait for the certificate, then verify:**
+
+```bash
+kubectl get certificate argocd-server-tls -n argocd --watch
+```
+
+Once `READY` shows `True`:
+```bash
+curl -v https://argo.yourdomain.com/
+```
+
+If it stays stuck (same symptom as §10's cert troubleshooting — HTTP-01
+challenge validated but the Order never finalizes), delete the Order to
+force a clean retry:
+```bash
+kubectl get order -n argocd
+kubectl delete order <name> -n argocd
+```
+
+**7. Log in** at `https://argo.yourdomain.com` with `admin` and the
+password from §5.5 (`kubectl -n argocd get secret
+argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d`).
 
 ## 6. Local development (no AWS needed)
 
