@@ -371,8 +371,13 @@ Repeat for the other 4 namespaces to confirm all pods are `Running` and
 
 1. AWS Console → **Amplify Hosting** → **New app → Host web app** → connect
    your GitHub repo and branch (`main`).
-2. Amplify auto-detects `frontend/amplify.yml` — if it doesn't, set the
-   **app root** to `frontend` in the build settings.
+2. Amplify auto-detects the monorepo build spec from the repo-root
+   `amplify.yml` (its `appRoot: frontend` tells Amplify where the actual app
+   lives). This only works from the repo root — if this file is nested
+   inside `frontend/` instead, Amplify silently falls back to a generic
+   build spec, which typically deploys something broken (404 at the app
+   URL). If Amplify still doesn't pick it up, set the **app root** to
+   `frontend` manually in the build settings.
 3. Under **App settings → Environment variables**, add:
    - `VITE_API_BASE_URL` = `https://api.yourdomain.com`
 4. Save and deploy. Amplify will rebuild automatically on every push to
