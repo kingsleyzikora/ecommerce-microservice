@@ -10,11 +10,11 @@ node_max_size       = 3
 use_spot            = true
 single_nat_gateway  = true
 
-github_repo = "kingsleyzikora/ecommerce-microservice"
+github_repo = "your-gh-org/your-repo-name"
 
 # Route 53 (DNS hosting for your domain - e.g. delegated from Namecheap).
 # Leave domain_name = "" to manage DNS elsewhere instead.
-domain_name        = "bigdawgboss.online"
+domain_name        = "yourdomain.com"
 create_hosted_zone = true
 api_subdomain      = "api"
 

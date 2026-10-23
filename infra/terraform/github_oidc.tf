@@ -4,7 +4,7 @@
 variable "github_repo" {
   description = "GitHub repo allowed to assume the CI role, as org/repo"
   type        = string
-  default     = "kingsleyzikora/ecommerce-microservice"
+  default     = "REPLACE_WITH_YOUR_GH_ORG/REPLACE_WITH_YOUR_REPO_NAME"
 }
 
 data "tls_certificate" "github" {

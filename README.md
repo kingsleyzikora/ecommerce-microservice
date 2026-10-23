@@ -149,19 +149,21 @@ practicing with it** — that's the only real way to keep this cheap.
 ### 5.1 Push this repo to GitHub
 
 ```bash
-cd micro-service-handson
+cd <your-repo-name>
 git init
 git add .
 git commit -m "Initial commit: microservices platform on EKS"
 git branch -M main
-git remote add origin https://github.com/<your-gh-org>/micro-service-handson.git
+git remote add origin https://github.com/<your-gh-org>/<your-repo-name>.git
 git push -u origin main
 ```
 
-Then replace every `REPLACE_WITH_YOUR_GH_ORG` placeholder (in
-`k8s/argocd/root-app.yaml`, `k8s/argocd/apps/*.yaml`, and
-`infra/terraform/terraform.tfvars`) with `<your-gh-org>/micro-service-handson`,
-commit, and push again.
+Then replace every `REPLACE_WITH_YOUR_GH_ORG/REPLACE_WITH_YOUR_REPO_NAME`
+placeholder (in `k8s/argocd/root-app.yaml`, `k8s/argocd/apps/*.yaml`, and
+`infra/terraform/github_oidc.tf`'s `github_repo` default) with
+`<your-gh-org>/<your-repo-name>`, commit, and push again. (You'll also set
+the real value in `terraform.tfvars` itself in §5.2 — the default in
+`github_oidc.tf` is just a fallback.)
 
 ### 5.2 Provision AWS infrastructure with Terraform
 

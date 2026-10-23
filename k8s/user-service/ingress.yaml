@@ -18,10 +18,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - api.bigdawgboss.online
+        - api.yourdomain.com
       secretName: user-service-tls
   rules:
-    - host: api.bigdawgboss.online
+    - host: api.yourdomain.com
       http:
         paths:
           - path: /api/users

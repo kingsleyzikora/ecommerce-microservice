@@ -1,4 +1,4 @@
-# Exposes the ArgoCD UI/API at argo.bigdawgboss.online, reusing the same
+# Exposes the ArgoCD UI/API at argo.yourdomain.com, reusing the same
 # nginx-ingress + cert-manager pattern as the 5 microservices. Requires
 # argocd-server running in insecure mode (server.insecure: "true" in
 # argocd-cmd-params-cm) so it serves plain HTTP on port 8080 for nginx to
@@ -20,10 +20,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - argo.bigdawgboss.online
+        - argo.yourdomain.com
       secretName: argocd-server-tls
   rules:
-    - host: argo.bigdawgboss.online
+    - host: argo.yourdomain.com
       http:
         paths:
           - path: /

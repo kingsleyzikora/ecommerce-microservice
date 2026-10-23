@@ -18,7 +18,7 @@ spec:
       containers:
         - name: user-service
           # Replace ACCOUNT_ID and REGION, or let CI rewrite this tag on each build.
-          image: 873014949913.dkr.ecr.us-east-1.amazonaws.com/user-service:b5013c762c6682f70a11296983d379c44cd9cf5d
+          image: ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/user-service:b5013c762c6682f70a11296983d379c44cd9cf5d
           ports:
             - containerPort: 8080
           envFrom:

@@ -1,4 +1,4 @@
-# Exposes the ArgoCD UI itself at argo.bigdawgboss.online - see
+# Exposes the ArgoCD UI itself at argo.yourdomain.com - see
 # k8s/argocd-server-ingress/ingress.yaml for the actual resource and why
 # server.insecure had to be set on argocd-server first.
 apiVersion: argoproj.io/v1alpha1
@@ -11,7 +11,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/kingsleyzikora/ecommerce-microservice.git
+    repoURL: https://github.com/REPLACE_WITH_YOUR_GH_ORG/REPLACE_WITH_YOUR_REPO_NAME.git
     targetRevision: main
     path: k8s/argocd-server-ingress
   destination:
