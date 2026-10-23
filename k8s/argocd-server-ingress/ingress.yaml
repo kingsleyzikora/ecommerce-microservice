@@ -1,0 +1,35 @@
+# Exposes the ArgoCD UI/API at argo.bigdawgboss.online, reusing the same
+# nginx-ingress + cert-manager pattern as the 5 microservices. Requires
+# argocd-server running in insecure mode (server.insecure: "true" in
+# argocd-cmd-params-cm) so it serves plain HTTP on port 8080 for nginx to
+# terminate real TLS in front of - otherwise argocd-server's own self-signed
+# internal TLS double-wraps the connection. That ConfigMap patch was applied
+# imperatively (kubectl patch) rather than tracked here, since ArgoCD itself
+# was installed from the upstream install.yaml, not from this repo.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # ArgoCD's UI does its own internal routing/auth; this just stops nginx
+    # from doing anything surprising with the path.
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - argo.bigdawgboss.online
+      secretName: argocd-server-tls
+  rules:
+    - host: argo.bigdawgboss.online
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  name: http

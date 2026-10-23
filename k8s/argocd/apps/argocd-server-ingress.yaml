@@ -1,0 +1,25 @@
+# Exposes the ArgoCD UI itself at argo.bigdawgboss.online - see
+# k8s/argocd-server-ingress/ingress.yaml for the actual resource and why
+# server.insecure had to be set on argocd-server first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kingsleyzikora/ecommerce-microservice.git
+    targetRevision: main
+    path: k8s/argocd-server-ingress
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
